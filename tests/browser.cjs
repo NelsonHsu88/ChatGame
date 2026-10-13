@@ -26,8 +26,11 @@ const { chromium } = require("playwright");
   await page.keyboard.down("a");
   await page.waitForTimeout(300);
   await page.keyboard.up("a");
-  const moved = await page.evaluate(async () => (await import('/src/App.tsx')).engine.x);
-  if (moved >= 0) throw new Error('Keyboard movement did not reposition the squad');
+  const moved = await page.evaluate(
+    async () => (await import(performance.getEntriesByType("resource").find(r=>new URL(r.name).pathname==="/src/App.tsx").name)).engine.x,
+  );
+  if (moved >= 0)
+    throw new Error("Keyboard movement did not reposition the squad");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "RESUME OPERATION" }).waitFor();
   await page.getByRole("button", { name: "RESUME OPERATION" }).click();
@@ -86,6 +89,43 @@ const { chromium } = require("playwright");
     assert(
       e.bullets.filter((b) => b.active).length >= 12,
       "every soldier fires a projectile",
+    );
+    assert(
+      e.bullets.filter((b) => b.active).every((b) => b.vx === 0),
+      "all soldiers shoot straight ahead",
+    );
+    const walking = e.army[0].children[3].rotation.x;
+    e.update(0.04);
+    assert(
+      e.army[0].children[3].rotation.x !== walking,
+      "army legs animate while marching",
+    );
+    clean();
+    e.fireClock = 100;
+    const untouched = e.army.filter((g) => Math.abs(g.position.x) > 1.02);
+    const slots = untouched.map((g) => [g, g.position.x, g.position.z]);
+    const roadblock = e.spawn("obstacle", 0, 7.5);
+    e.update(0.04);
+    assert(
+      e.army.length === 9,
+      "roadblock kills only contacted soldiers in the first row",
+    );
+    for (let i = 0; i < 6; i++) e.update(0.04);
+    assert(e.army.length === 6, "roadblock sweeps through the back rows too");
+    assert(
+      slots.every(
+        ([g, x, z]) =>
+          e.army.includes(g) && g.position.x === x && g.position.z === z,
+      ),
+      "untouched soldiers keep their formation slots",
+    );
+    e.remove(roadblock);
+    e.setArmy(12);
+    e.spawn("obstacle", -4, 7.5);
+    e.update(0.04);
+    assert(
+      e.army.length === 12,
+      "dodged obstacle does not kill distant soldiers",
     );
     clean();
     e.fireClock = 100;
@@ -163,18 +203,40 @@ const { chromium } = require("playwright");
   });
   console.log(JSON.stringify({ checks, errors }));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', {name:'DEPLOY SQUAD'}).click();
+  await page.getByRole("button", { name: "DEPLOY SQUAD" }).click();
   const touchSession = await page.context().newCDPSession(page);
-  await touchSession.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:60,y:460}]});
-  await touchSession.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:90,y:460}]});
-  await touchSession.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-  const touched = await page.evaluate(async () => (await import('/src/App.tsx')).engine.x);
-  if (touched >= 0) throw new Error('Touch movement did not reposition the squad');
-  const progression = await page.evaluate(() => JSON.parse(localStorage.getItem('horde-rush-v1')));
+  await touchSession.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: 60, y: 460 }],
+  });
+  await touchSession.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ x: 90, y: 460 }],
+  });
+  await touchSession.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  const touched = await page.evaluate(
+    async () => (await import(performance.getEntriesByType("resource").find(r=>new URL(r.name).pathname==="/src/App.tsx").name)).engine.x,
+  );
+  if (touched >= 0)
+    throw new Error("Touch movement did not reposition the squad");
+  const progression = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("horde-rush-v1")),
+  );
   await page.reload();
-  const restored = await page.evaluate(async () => (await import('/src/store.ts')).useGame.getState().save);
-  if(restored.coins !== progression.coins || restored.best !== progression.best) throw new Error('Progression failed to persist across reload');
-  console.log('Keyboard movement, mobile pointer movement, and persistent progression passed');
+  const restored = await page.evaluate(
+    async () => (await import("/src/store.ts")).useGame.getState().save,
+  );
+  if (
+    restored.coins !== progression.coins ||
+    restored.best !== progression.best
+  )
+    throw new Error("Progression failed to persist across reload");
+  console.log(
+    "Keyboard movement, mobile pointer movement, and persistent progression passed",
+  );
   await browser.close();
   if (errors.length) process.exit(1);
 })().catch((e) => {

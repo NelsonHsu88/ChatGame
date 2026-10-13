@@ -11,7 +11,14 @@ import {
 import { useGame } from "./store";
 import { AudioSystem } from "./audio";
 type Kind =
-  "enemy" | "crate" | "barrier" | "gate" | "split" | "barrel" | "boss";
+  | "enemy"
+  | "crate"
+  | "barrier"
+  | "gate"
+  | "split"
+  | "barrel"
+  | "boss"
+  | "obstacle";
 export type Target = {
   id: number;
   kind: Kind;
@@ -225,53 +232,33 @@ export class Engine {
     this.scene.add(this.bulletMesh, this.particleMesh);
     this.bulletMesh.frustumCulled = false;
     this.particleMesh.frustumCulled = false;
-    const terrain = piece(
-      this.scene,
-      box,
-      mat(0xe7c697),
-      0,
-      -0.32,
-      -28,
-      180,
-      0.3,
-      180,
-    );
-    terrain.receiveShadow = true;
-    piece(this.scene, box, mat(0x65707a), 0, -0.1, -28, 12, 0.22, 140);
-    for (const x of [-6.15, 6.15]) {
-      piece(this.scene, box, mat(0xe8e6d4), x, 0.02, -28, 0.2, 0.15, 140);
-      piece(
-        this.scene,
-        box,
-        mat(0xb39778),
-        x * 1.1,
-        -0.08,
-        -28,
-        0.6,
-        0.12,
-        140,
-      );
+    // Suspension bridge: red steel, pale asphalt, and blue water.
+    piece(this.scene, box, mat(0x5ba7cd), 0, -2, -28, 180, 0.3, 180);
+    piece(this.scene, box, mat(0x8e929b), 0, -0.1, -28, 12, 0.22, 140);
+    const steel = mat(0xb94235),
+      rail = mat(0xe16149),
+      white = mat(0xf5eee1);
+    for (const side of [-1, 1]) {
+      piece(this.scene, box, white, side * 5.8, 0.025, -28, 0.12, 0.025, 140);
+      piece(this.scene, box, steel, side * 6.2, 0.55, -28, 0.16, 0.18, 140);
+      piece(this.scene, box, rail, side * 6.2, 1.2, -28, 0.12, 0.12, 140);
+      for (let z = -80; z < 20; z += 3)
+        piece(this.scene, box, steel, side * 6.2, 0.6, z, 0.12, 1.2, 0.12);
+      for (let z = -70; z < 20; z += 25) {
+        const tower = new T.Group();
+        tower.position.set(side * 6.5, 0, z);
+        piece(tower, box, steel, 0, 4.5, 0, 0.6, 9, 0.65);
+        piece(tower, box, rail, 0, 5.8, 0, 0.8, 0.2, 0.85);
+        const cable = piece(tower, box, rail, 0, 4.5, -5, 0.12, 0.12, 16);
+        cable.rotation.x = 0.48;
+        this.scene.add(tower);
+        this.scenery.push(tower);
+      }
     }
-    const white = mat(0xf5eee1);
     for (let z = -80; z < 20; z += 6)
-      for (const x of [-2, 2])
-        this.lines.push(
-          piece(this.scene, box, white, x, 0.023, z, 0.09, 0.025, 2.3),
-        );
-    const cactus = mat(0x6c9671),
-      rock = mat(0xc09f7d);
-    for (let i = 0; i < 34; i++) {
-      const g = new T.Group();
-      const side = i % 2 ? -1 : 1;
-      g.position.set(side * (8 + (i % 5) * 2.1), 0, -70 + i * 3);
-      if (i % 3 === 0) {
-        piece(g, box, cactus, 0, 0.8, 0, 0.3, 1.6, 0.3);
-        piece(g, box, cactus, 0.4, 0.9, 0, 0.55, 0.22, 0.22);
-        piece(g, box, cactus, 0.6, 1.15, 0, 0.2, 0.65, 0.22);
-      } else piece(g, sphere, rock, 0, 0.25, 0, 0.7, 0.45, 0.5);
-      this.scene.add(g);
-      this.scenery.push(g);
-    }
+      this.lines.push(
+        piece(this.scene, box, white, 0, 0.023, z, 0.12, 0.025, 2.6),
+      );
     this.setArmy(1);
     this.spawn("enemy", -1, -18, 0);
     this.spawn("enemy", 1, -22, 0);
@@ -295,16 +282,34 @@ export class Engine {
     count = Math.min(CONFIG.maxArmy, Math.max(0, count));
     while (this.army.length < count) {
       const g = soldier(true);
+      const used = new Set(this.army.map((a) => a.userData.slot as number));
+      let slot = 0;
+      while (used.has(slot)) slot++;
+      g.userData.slot = slot;
       this.scene.add(g);
       this.army.push(g);
     }
-    while (this.army.length > count) {
-      const g = this.army.pop()!;
-      this.scene.remove(g);
-      (g.children[8] as T.Mesh).material instanceof T.Material &&
-        ((g.children[8] as T.Mesh).material as T.Material).dispose();
-    }
+    while (this.army.length > count)
+      this.removeSoldier(this.army[this.army.length - 1]);
+    this.placeArmy();
     this.peak = Math.max(this.peak, count);
+  }
+  removeSoldier(g: T.Group) {
+    this.burst(g.position.x, g.position.z, 0x75c9ff, 12);
+    this.scene.remove(g);
+    ((g.children[8] as T.Mesh).material as T.Material).dispose();
+    this.army = this.army.filter((a) => a !== g);
+  }
+  placeArmy() {
+    const columns = [0, -0.65, 0.65, -1.3, 1.3, 1.95];
+    for (const g of this.army) {
+      const slot = g.userData.slot as number;
+      g.position.set(
+        this.x + columns[slot % 6],
+        0,
+        CONFIG.playerZ + Math.floor(slot / 6) * 0.8,
+      );
+    }
   }
   start(level = 1) {
     for (const t of [...this.targets]) this.remove(t);
@@ -340,10 +345,11 @@ export class Engine {
     this.bossWarning = "";
     for (const b of this.bullets) b.active = false;
     for (const p of this.particles) p.active = false;
+    this.setArmy(0);
     this.setArmy(1 + useGame.getState().save.training);
     this.audio.unlock();
     useGame.getState().setMode("playing");
-    this.notify("Aim at crates. Grow your squad.");
+    this.notify("Move to line up shots. Dodge roadblocks.");
     this.spawn("enemy", -1, -20, 0);
     this.spawn("enemy", 1, -25, 0);
   }
@@ -385,6 +391,27 @@ export class Engine {
     };
     if (kind === "enemy" && value === 2)
       piece(g, box, dark, 0, 0.88, -0.21, 0.58, 0.55, 0.16);
+    if (kind === "obstacle") {
+      const concrete = mat(0x596271),
+        warning = mat(0xffc546);
+      piece(g, box, concrete, 0, 0.55, 0, 1.6, 1.1, 0.9);
+      for (let i = -2; i <= 2; i++) {
+        const stripe = piece(
+          g,
+          box,
+          warning,
+          i * 0.3,
+          0.65,
+          -0.46,
+          0.16,
+          0.65,
+          0.025,
+        );
+        stripe.rotation.z = -0.4;
+      }
+      piece(g, box, red, -0.65, 1.2, 0, 0.12, 0.22, 0.15);
+      piece(g, box, red, 0.65, 1.2, 0, 0.12, 0.22, 0.15);
+    }
     if (kind === "crate" || kind === "barrel") {
       piece(g, box, wood, 0, 0.65, 0, 1.5, 1.3, 1.2);
       piece(g, box, dark, 0, 0.65, -0.63, 1.55, 0.12, 0.05);
@@ -424,7 +451,7 @@ export class Engine {
   }
   updateLabel(t: Target) {
     let txt =
-      t.kind === "enemy"
+      t.kind === "enemy" || t.kind === "obstacle"
         ? ""
         : t.kind === "boss"
           ? "THE COLOSSUS"
@@ -544,12 +571,10 @@ export class Engine {
       return;
     this.earned = Math.round(this.kills * 2 + (win ? 100 * this.level : 20));
     const s = useGame.getState().save;
-    useGame
-      .getState()
-      .persist({
-        coins: s.coins + this.earned,
-        best: Math.max(s.best, win ? this.level + 1 : this.level),
-      });
+    useGame.getState().persist({
+      coins: s.coins + this.earned,
+      best: Math.max(s.best, win ? this.level + 1 : this.level),
+    });
     this.audio.play(win ? "win" : "lose");
     useGame.getState().setMode(win ? "victory" : "defeat");
     if (win) this.burst(this.x, 4, 0xffd77e, 100);
@@ -662,6 +687,7 @@ export class Engine {
     if (this.event >= times.length || this.time < times[this.event]) return;
     const i = this.event++;
     const side = i % 2 ? -3 : 3;
+    if (i >= 1) this.spawn("obstacle", i % 3 === 0 ? 0 : -side, -56);
     if (i === 0) {
       this.spawn("gate", -3, -38, 2);
       this.spawn("crate", 3, -45, 16, "SMG");
@@ -756,6 +782,7 @@ export class Engine {
         this.audio.play("boss");
         this.notify("BOSS · The Colossus");
       }
+      this.placeArmy();
       this.fireClock -= dt;
       if (this.fireClock <= 0) {
         this.fireClock += 1 / (WEAPONS[this.weapon].rate * this.rate);
@@ -763,13 +790,14 @@ export class Engine {
         for (const g of this.army)
           for (let p = 0; p < pellets; p++)
             this.fire(
-              g.position.x + 0.22,
+              g.position.x + 0.22 + (p - (pellets - 1) / 2) * 0.13,
               g.position.z - 0.7,
-              (this.aim - g.position.x) * 1.7 + (p - (pellets - 1) / 2) * 2,
+              0,
             );
         this.audio.play("shot");
       }
       for (const t of [...this.targets]) {
+        const previousZ = t.z;
         t.age += dt;
         t.hit = Math.max(0, t.hit - dt);
         if (t.kind === "enemy") {
@@ -801,7 +829,26 @@ export class Engine {
             if (t.z > 0 && Math.abs(t.x - this.x) < 2) this.hurt(2);
           }
         } else t.z += dt * 4;
-        if (t.z >= CONFIG.playerZ - 0.65) {
+        if (t.kind === "obstacle") {
+          for (const g of [...this.army]) {
+            // Sweep the obstacle through every formation row; retain untouched slots.
+            if (
+              Math.abs(g.position.x - t.x) < 1.02 &&
+              g.position.z >= previousZ - 0.67 &&
+              g.position.z <= t.z + 0.67
+            )
+              this.removeSoldier(g);
+          }
+          if (!this.army.length) {
+            this.finish(false);
+            break;
+          }
+          if (t.z > CONFIG.playerZ + 8) {
+            this.remove(t);
+            continue;
+          }
+        }
+        if (t.kind !== "obstacle" && t.z >= CONFIG.playerZ - 0.65) {
           if (t.kind === "enemy") {
             if (
               Math.abs(t.x - this.x) <
@@ -885,11 +932,16 @@ export class Engine {
           if (t.kind === "split") {
             if (!b.split) {
               b.split = true;
-              this.fire(b.x, b.z, b.vx - 2.5, b.weapon, true);
-              b.vx += 2.5;
+              this.fire(b.x - 0.13, b.z, 0, b.weapon, true);
+              b.x += 0.13;
             }
             b.hits.add(t.id);
             continue;
+          }
+          if (t.kind === "obstacle") {
+            this.burst(b.x, b.z, 0xffce67, 2);
+            b.active = false;
+            break;
           }
           this.hit(t, b);
           b.hits.add(t.id);
@@ -905,20 +957,18 @@ export class Engine {
         }
       }
     }
-    for (let i = 0; i < this.army.length; i++) {
-      const g = this.army[i],
-        row = Math.floor(i / 6),
-        cols = Math.min(6, this.army.length - row * 6);
-      g.position.set(
-        this.x + ((i % 6) - (cols - 1) / 2) * 0.65,
-        Math.sin(this.visualTime * 8 + i) * 0.025,
-        CONFIG.playerZ + row * 0.7,
-      );
-      g.rotation.y = T.MathUtils.clamp(
-        (this.aim - g.position.x) * 0.025,
-        -0.3,
-        0.3,
-      );
+    this.placeArmy();
+    for (const g of this.army) {
+      const stride = playing
+        ? Math.sin(this.time * 10 + (g.userData.slot as number) * 0.7)
+        : 0;
+      g.position.y = playing ? Math.abs(stride) * 0.045 : 0;
+      // March in place while the bridge scrolls; rifles remain pointed forward.
+      g.children[3].rotation.x = stride * 0.48;
+      g.children[4].rotation.x = -stride * 0.48;
+      g.children[5].rotation.x = -stride * 0.1;
+      g.children[6].rotation.x = stride * 0.1;
+      g.rotation.y = 0;
       g.children[7].position.z =
         -0.47 + (playing && this.fireClock < 0.04 ? 0.1 : 0);
       g.children[8].visible = playing && this.fireClock < 0.045;

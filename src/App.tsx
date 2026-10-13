@@ -27,7 +27,7 @@ function App() {
           }}
         >
           H<span>R</span>
-          <i /> <small>DESERT DIVISION</small>
+          <i /> <small>BRIDGE DIVISION</small>
         </a>
         <div className="header-right">
           <span className="coins">◈ {save.coins.toLocaleString()}</span>
@@ -52,7 +52,7 @@ function App() {
             HORDE
             <br />
             <em>RUSH</em>
-            <span className="edition">01 / DESERT DIVISION</span>
+            <span className="edition">01 / BRIDGE DIVISION</span>
           </h1>
           <p>
             One soldier. An unstoppable army.
@@ -93,7 +93,9 @@ function App() {
             <b>01</b>
             <p>
               <strong>LET THE BULLETS FLY</strong>
-              <span>Auto-fire is on. Move your mouse to aim.</span>
+              <span>
+                Auto-fire is on. Drag or use A/D to line up your shots.
+              </span>
             </p>
           </div>
           <div>
@@ -201,7 +203,7 @@ function App() {
             </div>
           )}
           <div className="control-hint">
-            A / D TO MOVE · MOUSE TO AIM · DRAG ON MOBILE
+            A / D TO MOVE · DRAG TO MOVE · DRAG ON MOBILE
           </div>
         </>
       )}
@@ -363,9 +365,9 @@ function App() {
               {save.volume ? "MUTE SOUND" : "ENABLE SOUND"}
             </button>
             <p>
-              Mouse to aim. A/D or arrows to move.
+              Shots fly straight. A/D or arrows to move.
               <br />
-              Touch: drag to move and aim.
+              Touch: drag to move.
               <br />
               Space or Escape to pause.
             </p>
@@ -376,7 +378,7 @@ function App() {
         </div>
       )}
       <footer className="site-footer">
-        <span>DESERT DIVISION · HORDE RUSH</span>
+        <span>BRIDGE DIVISION · HORDE RUSH</span>
         <span>STAY SHARP. STAY TOGETHER.</span>
       </footer>
     </main>

@@ -1,4 +1,4 @@
-# Horde Rush — Desert Division
+# Horde Rush — Bridge Division
 
 A playable 3D arcade shooter built with React, TypeScript, Vite, React Three Fiber, Three.js, and Zustand. Models, effects, and audio are procedural; fonts ship locally. No API keys, database, or external assets are required.
 
@@ -15,12 +15,14 @@ Open the development address printed by Vite in a local browser. `npm run build`
 
 ## Controls
 
-- Mouse movement aims. A/D or left/right arrows move the squad.
-- Drag with mouse or touch to move and aim together. Shooting is automatic.
+- A/D or left/right arrows move the squad. Every soldier fires straight forward from their own rifle.
+- Drag with mouse or touch to reposition the squad and line up shots. Shooting is automatic.
 - Space, Escape, or the pause button pauses. Losing focus also pauses.
 - Settings controls sound volume and mute. Sound starts after deployment.
 
 ## Field manual
+
+Red bridge roadblocks kill only the soldiers they physically touch, row by row. Surviving soldiers keep their slots, leaving visible gaps; recruits fill those gaps. Roadblocks stop bullets and cannot be destroyed. Dodge them by moving the squad. Soldiers march with alternating leg movements while the bridge scrolls.
 
 Enemy contact removes soldiers within your formation. Fast, armored, and tank enemies appear in later waves. Every soldier fires real projectiles, up to a 48-soldier cap.
 

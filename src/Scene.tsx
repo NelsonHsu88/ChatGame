@@ -6,6 +6,7 @@ import { useGame } from "./store";
 function World({ engine }: { engine: Engine }) {
   const { camera, size } = useThree();
   const baseline = useRef(new T.Vector3());
+  const focusZ = useRef(-5);
   useEffect(() => {
     camera.position.set(
       0,
@@ -22,14 +23,17 @@ function World({ engine }: { engine: Engine }) {
       engine.update(step);
       remaining -= step;
     }
+    const lastRow=Math.max(0,...engine.army.map(g=>Math.floor((g.userData.slot as number)/6)));
+    focusZ.current=T.MathUtils.damp(focusZ.current,-5+lastRow*.7,3,dt);
+    camera.lookAt(0,0,focusZ.current);
     camera.position.x =
       baseline.current.x +
       (engine.shake ? (Math.random() - 0.5) * engine.shake * 0.7 : 0);
   });
   return (
     <>
-      <color attach="background" args={["#edcf9f"]} />
-      <fog attach="fog" args={["#edcf9f", 48, 105]} />
+      <color attach="background" args={["#8fc9e4"]} />
+      <fog attach="fog" args={["#8fc9e4", 48, 105]} />
       <ambientLight intensity={1.9} />
       <directionalLight
         position={[-14, 30, 10]}
@@ -87,7 +91,6 @@ export function Scene({ engine }: { engine: Engine }) {
     if (useGame.getState().mode !== "playing") return;
     const r = host.current!.getBoundingClientRect();
     const normalized = ((e.clientX - r.left) / r.width) * 2 - 1;
-    engine.aim = T.MathUtils.clamp(normalized * 8, -5, 5);
     if (dragging.current)
       engine.x = T.MathUtils.clamp(normalized * 5, -4.2, 4.2);
   }
